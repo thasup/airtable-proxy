@@ -1,363 +1,188 @@
-# Airtable API Proxy Server
+# Secure Airtable Proxy for AI Agents
 
-A simple Python proxy server that forwards requests from clients (or LLMs) to the Airtable Web API, automatically attaching the correct authentication header.
+A secure, high-performance proxy server built with FastAPI that sits between your AI agents and the Airtable API. The server acts as a centralized gateway to manage authentication, enforce access scopes, and completely isolate your proprietary Airtable Personal Access Tokens (PAT) from the public internet and external agents.
 
----
+## Why this Proxy?
 
-## 1. Project Overview
-
-### Why a Proxy?
-
-- **Security**: Keep your Airtable Personal Access Token (PAT) on the server.
-- **Simplicity**: LLMs/clients call your proxy; they don’t need to know Airtable auth.
-- **Flexibility**: Easy place to add rate limiting, logging, transformations, etc.
-
-### What This Proxy Does
-
-- Exposes endpoints under `/v0/...` that mirror Airtable’s `/v0/...` API.
-- Adds `Authorization: Bearer <AIRTABLE_TOKEN>` to every outgoing request.
-- Forwards method, path, query params, and JSON body to Airtable.
-- Returns Airtable’s response (status code + body) to the caller.
+When building and deploying AI agents (especially autonomous or third-party ones), granting direct access to your primary Airtable tokens poses a massive security risk. Instead of distributing your secret token, this proxy allows you to:
+- Issue unique, trackable **sub-tokens** to specific AI agents.
+- **Scope** those tokens to have access ONLY to specific Airtable Bases.
+- **Revoke** an agent's token in real-time without rotating your master Airtable PAT.
+- **Rate Limit** unauthorized requests and protect your upstream API limits from brute-force scripts.
+- **Audit** and log all requests internally in an embedded SQLite database.
 
 ---
 
-## 2. Airtable API Quick Reference
+## 🚀 Quickstart
 
-### Base URL
+### Prerequisites
+- Python 3.11+
+- An [Airtable Personal Access Token (PAT)](https://airtable.com/create/tokens)
 
-```text
-https://api.airtable.com/v0/
-```
+### 1. Installation
 
-### Authentication
-
-All requests require a Bearer token in the `Authorization` header:
-
-```text
-Authorization: Bearer YOUR_PERSONAL_ACCESS_TOKEN
-```
-
-### Common Endpoints
-
-| Method | Endpoint                                | Description      |
-| ------ | --------------------------------------- | ---------------- |
-| GET    | `/v0/{baseId}/{tableName}`             | List records     |
-| GET    | `/v0/{baseId}/{tableName}/{recordId}`  | Get a record     |
-| POST   | `/v0/{baseId}/{tableName}`             | Create records   |
-| PATCH  | `/v0/{baseId}/{tableName}`             | Update records   |
-| DELETE | `/v0/{baseId}/{tableName}`             | Delete records   |
-
-### Getting Your PAT
-
-1. Go to <https://airtable.com/create/tokens>
-2. Click **"Create token"**
-3. Add scopes (for example: `data.records:read`, `data.records:write`)
-4. Add the bases/workspaces you want to access
-5. Copy the token (you only see it once!)
-
----
-
-## 3. Tech Stack
-
-| Component        | Choice        | Why                                   |
-| ---------------- | ------------- | ------------------------------------- |
-| Web framework    | Flask         | Simple, beginner-friendly             |
-| HTTP client      | `requests`    | Popular, intuitive API                |
-| Config           | `python-dotenv` | Load `.env` (similar to JS dotenv) |
-| Prod server      | `gunicorn`    | WSGI server for deployment (Render)   |
-
----
-
-## 4. Project Structure
-
-```text
-airtable-proxy/
-├── app.py           # Main Flask application (proxy logic)
-├── requirements.txt # Dependencies
-├── render.yaml      # Render deployment config
-├── .env.example     # Example environment variables (no secrets)
-├── .gitignore       # Ignore venv, __pycache__, .env, etc.
-├── PLAN.md          # Original learning-focused project plan
-└── README.md        # This file
-```
-
----
-
-## 5. Setup & Local Development
-
-### 5.1. Prerequisites
-
-- Python 3.10+ installed
-- PowerShell or any terminal
-
-### 5.2. Create and Activate Virtual Environment
+Clone the repository and install the minimal dependencies inside a virtual environment:
 
 ```bash
-# From project root
-python -m venv venv
-
-# Activate (Windows)
-venv\Scripts\activate
-
-# Activate (Mac/Linux)
+# Create and activate a virtual environment
+python3 -m venv venv
 source venv/bin/activate
-```
 
-### 5.3. Install Dependencies
-
-```bash
+# Install requirements
 pip install -r requirements.txt
 ```
 
-### 5.4. Configure Environment Variables
+### 2. Configuration
 
-Create a `.env` file (do **not** commit this):
+Create a `.env` file or export the following environment variables. The server reads these on startup:
 
-```text
-AIRTABLE_TOKEN=pat.xxxxxxxxxxxxx.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```env
+# REQUIRED: Your actual Airtable token (kept purely server-side)
+AIRTABLE_PAT=patYourAirtableTokenSecret123
+
+# REQUIRED: A strong passphrase to protect the Proxy's Admin API
+ADMIN_SECRET=your_super_secret_admin_phrase
+
+# OPTIONAL: Path to store your SQLite database (defaults to proxy.db)
+DB_PATH=proxy.db
 ```
 
-Or copy from `.env.example` and edit:
+### 3. Running the Server
+
+You can use the provided convenience script to instantly boot the server:
 
 ```bash
-copy .env.example .env   # Windows
-# then open .env and paste your real PAT
+chmod +x run.sh
+./run.sh
 ```
+
+Alternatively, run the ASGI server directly:
+```bash
+uvicorn src.main:app --host 0.0.0.0 --port 8000
+```
+*The proxy will automatically detect the lack of a database and initialize the credentials and logs tables securely.*
 
 ---
 
-## 6. Running the Server Locally
+## 🔑 Administering AI Agent Tokens
 
-From the project root with the virtual environment active:
+To allow an AI agent to use your proxy, you first need to mint them an access token. Because the admin routes are secured, you must provide the `ADMIN_SECRET` bearer token you configured on startup.
 
+### Generating a New Token
+
+**Request:**
 ```bash
-python app.py
+curl -X POST "http://localhost:8000/admin/tokens" \
+     -H "Authorization: Bearer your_super_secret_admin_phrase" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "name": "Customer Support Agent",
+           "allowed_bases": ["appXYZ123", "appABC789"]
+         }'
 ```
+*(Tip: Pass `["*"]` if you want the agent to have access to all bases the master PAT can access).*
 
-You should see something like:
-
-```text
-==================================================
-Airtable Proxy Server
-==================================================
-Token configured: True
-Starting server on http://localhost:5000
-==================================================
-```
-
-The server will be available at:
-
-- <http://localhost:5000/>
-
----
-
-## 7. Using the Proxy
-
-### 7.1. Health Check
-
-```bash
-curl http://localhost:5000/
-```
-
-Example response:
-
+**Response:**
 ```json
 {
-  "status": "ok",
-  "message": "Airtable Proxy Server is running",
-  "token_configured": true
+  "id": "b3e945...",
+  "token": "sk_agent_xxxxxxxxxxx",
+  "name": "Customer Support Agent",
+  "allowed_bases": ["appXYZ123", "appABC789"],
+  "created_at": "2026-03-11T00:00:00Z",
+  "is_active": true
+}
+```
+**🚨 IMPORTANT:** The `token` string is only returned *once*. Internally, the proxy stores a one-way `SHA-256` hash. Provide this `sk_agent_` token to your AI agent.
+
+### Revoking a Token
+
+If an agent goes rogue or the token leaks, instantly revoke access via the Admin API using the database `id`:
+
+```bash
+curl -X DELETE "http://localhost:8000/admin/tokens/b3e945..." \
+     -H "Authorization: Bearer your_super_secret_admin_phrase"
+```
+
+---
+
+## 🤖 AI Agent Proxy Usage
+
+To interact with Airtable data, the AI agent simply sends standard API requests to your proxy URL instead of `api.airtable.com`.
+
+All endpoints are fully supported (e.g. `GET`, `POST`, `PATCH`, `DELETE`). The proxy parses the `baseId`, validates the token's active status and base permissions in under `<50ms`, replaces the authentication header, and forwards the exact payload to Airtable.
+
+**Example Request from the AI Agent:**
+```bash
+curl -X GET "http://localhost:8000/v0/appXYZ123/Table1" \
+     -H "Authorization: Bearer sk_agent_xxxxxxxxxxx"
+```
+
+If the token is invalid, revoked, or attempts to access a Base it doesn't have permission for, the proxy intercepts and immediately rejects the request with a `401` or `403` status without hitting the upstream Airtable API.
+
+---
+
+## 🛡 Security & Concurrency Specs
+- **Data Model:** Tokens and Access Logs are managed via a local `SQLite` file ensuring minimal external network dependencies and reducing the attack surface.
+- **Rate-Limiting:** Incorporates an in-memory sliding window rate-limiter rejecting IPs executing excessively rapid or brute-force requests (`429 Too Many Requests`).
+- **Asynchronous & Highly Concurrent:** Powered by `FastAPI` and `httpx`, ensuring high performance and non-blocking background I/O capable of handling hundreds of concurrent agent requests efficiently.
+- **Audit Logging:** Every authenticated access attempt is catalogged (timestamp, success code, and requested path) alongside the unique agent ID utilizing background threads.
+
+## 🧪 Testing
+The proxy includes integration tests for both the Proxy routes and Admin routing checks manually confirming authentication behavior:
+```bash
+pytest
+```
+
+---
+
+## 🌍 Deployment
+
+Since the proxy server is handling sensitive authentication tokens over the internet, **HTTPS is heavily recommended** for production environments to prevent man-in-the-middle token leakage.
+
+### Standard Production Setup
+
+A typical production setup involves running the app using a process manager or a container, and placing it behind a reverse proxy (like Nginx, Caddy, or Traefik) that handles SSL/TLS termination.
+
+**Running with Uvicorn in Production:**
+To fully utilize modern server architectures, run `uvicorn` with multiple workers:
+```bash
+uvicorn src.main:app --host 127.0.0.1 --port 8000 --workers 4
+```
+*(Note: Since SQLite is using a local file, ensure that multiple workers aren't causing write concurrency issues for your workload. Setting `check_same_thread=False` generally mitigates read limitations, and token creation is infrequent).*
+
+**Caddy Reverse Proxy Example (`Caddyfile`):**
+Caddy automatically handles Let's Encrypt HTTPS generation:
+```text
+proxy.yourdomain.com {
+    reverse_proxy 127.0.0.1:8000
 }
 ```
 
-### 7.2. List Bases (Airtable Metadata API)
+### Docker Deployment
 
+If you prefer containerized deployment, you can scaffold a container rapidly:
+
+**1. Create a `Dockerfile`:**
+```dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+**2. Build & Run (Mounting the DB to preserve secrets state):**
 ```bash
-curl "http://localhost:5000/v0/meta/bases"
+docker build -t airtable-proxy .
+
+docker run -d -p 8000:8000 \
+  -e AIRTABLE_PAT="patYourAirtableTokenSecret123" \
+  -e ADMIN_SECRET="your_super_secret_admin_phrase" \
+  -v $(pwd)/proxy.db:/app/proxy.db \
+  airtable-proxy
 ```
-
-In PowerShell:
-
-```powershell
-(Invoke-RestMethod "http://localhost:5000/v0/meta/bases").bases | Format-Table id, name
-```
-
-### 7.3. List Tables in a Base
-
-```bash
-curl "http://localhost:5000/v0/meta/bases/{baseId}/tables"
-```
-
-PowerShell example for a specific base:
-
-```powershell
-(Invoke-RestMethod "http://localhost:5000/v0/meta/bases/appoPztPp3kjnaI4Q/tables").tables | Format-Table id, name
-```
-
-### 7.4. List Records from a Table
-
-```bash
-curl "http://localhost:5000/v0/{baseId}/{tableName}?maxRecords=3"
-```
-
-Example (School of Lifelong Learning → `Books`):
-
-```bash
-curl "http://localhost:5000/v0/appoPztPp3kjnaI4Q/Books?maxRecords=3"
-```
-
-### 7.5. Create Records
-
-```bash
-curl -X POST "http://localhost:5000/v0/{baseId}/{tableName}" \
-  -H "Content-Type: application/json" \
-  -d '{"records": [{"fields": {"Name": "Test"}}]}'
-```
-
-### 7.6. Filter with `filterByFormula`
-
-```bash
-curl "http://localhost:5000/v0/{baseId}/{tableName}?filterByFormula={Status}='Finished'"
-```
-
-(Remember to URL-encode complex formulas when needed.)
-
----
-
-## 8. How the Proxy Works (Code Overview)
-
-High-level flow in `app.py`:
-
-1. **Load config** from `.env` using `python-dotenv`.
-2. **Create** a Flask app.
-3. `/` route → health check.
-4. `/v0/<path:path>` route → catch-all proxy for Airtable endpoints.
-5. Build target URL: `https://api.airtable.com/v0/{path}`.
-6. Build headers including `Authorization: Bearer <AIRTABLE_TOKEN>`.
-7. Forward method, URL, query params, and JSON body using `requests.request`.
-8. Return Airtable’s response JSON + status code.
-
-This design keeps the proxy **thin and transparent**.
-
----
-
-## 9. Deployment (Render Free Tier)
-
-This repo includes a `render.yaml` so Render can auto-configure the service.
-
-### 9.1. Required Files
-
-- `app.py`
-- `requirements.txt` (includes `gunicorn`)
-- `render.yaml`
-
-### 9.2. `render.yaml` (Summary)
-
-```yaml
-services:
-  - type: web
-    name: airtable-proxy
-    runtime: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
-    envVars:
-      - key: AIRTABLE_TOKEN
-        sync: false
-```
-
-### 9.3. Steps to Deploy
-
-1. Push this repo to GitHub.
-2. Go to <https://render.com> → create account / log in.
-3. **New +** → **Web Service** → connect your GitHub repo.
-4. Render will pick up `render.yaml` automatically.
-5. In Render dashboard → service → **Environment**:
-   - Add `AIRTABLE_TOKEN` with your real PAT.
-6. Click **Deploy** (or wait for auto-deploy on push).
-
-You’ll get a URL like:
-
-```text
-https://airtable-proxy.onrender.com
-```
-
-You can then call:
-
-```text
-https://airtable-proxy.onrender.com/v0/appoPztPp3kjnaI4Q/Books
-```
-
----
-
-## 10. Python Basics for JS/Node Developers (Cheat Sheet)
-
-### Syntax Differences
-
-| Concept        | JavaScript                 | Python                   |
-| -------------- | -------------------------- | ------------------------ |
-| Indentation    | Optional (`{}`)           | **Required** (4 spaces)  |
-| Variables      | `let`, `const`, `var`     | just `x = 5`             |
-| Functions      | `function`, `=>`          | `def`                    |
-| Null           | `null`                    | `None`                   |
-| Boolean        | `true`, `false`          | `True`, `False`          |
-| Print          | `console.log()`           | `print()`                |
-| Arrays         | `[]`                      | `[]` (lists)             |
-| Objects        | `{}`                      | `{}` (dicts)             |
-| String format  | `` `Hello ${name}` ``     | `f"Hello {name}"`     |
-| Async          | `async/await`             | `async/await`            |
-| Imports        | `import` / `require`      | `import` / `from x import y` |
-| Package mgr    | `npm`                     | `pip`                    |
-
-### Example: JS vs Python
-
-```javascript
-// JavaScript
-const greet = (name) => {
-  if (name === null) {
-    return "Hello, stranger!";
-  }
-  return `Hello, ${name}!`;
-};
-
-const numbers = [1, 2, 3];
-numbers.forEach((n) => console.log(n));
-```
-
-```python
-# Python
-
-def greet(name):
-    if name is None:
-        return "Hello, stranger!"
-    return f"Hello, {name}!"
-
-numbers = [1, 2, 3]
-for n in numbers:
-    print(n)
-```
-
----
-
-## 11. Useful Resources
-
-### Python
-
-- [Python Official Tutorial](https://docs.python.org/3/tutorial/)
-- [Real Python](https://realpython.com/)
-- [Flask Documentation](https://flask.palletsprojects.com/)
-
-### Airtable API
-
-- [Airtable API Docs](https://airtable.com/developers/web/api/introduction)
-- [Create PAT](https://airtable.com/create/tokens)
-- [API Scopes](https://airtable.com/developers/web/api/scopes)
-
----
-
-## 12. Status
-
-- Local proxy: ✅
-- Airtable integration: ✅
-- Render deployment config: ✅
-
-You can now safely expose this proxy endpoint to LLMs or other clients without revealing your Airtable token.

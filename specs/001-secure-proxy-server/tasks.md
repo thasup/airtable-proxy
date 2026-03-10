@@ -55,10 +55,10 @@ description: "Task list for feature implementation"
 
 ### Implementation for User Story 2
 
-- [ ] T011 [P] [US2] Create write/delete queries (`create_token`, `revoke_token`) in `src/db/tokens.py`.
-- [ ] T012 [P] [US2] Implement administrative token APIs conforming to `POST /admin/tokens` and `DELETE /admin/tokens/{id}` in `src/routers/admin.py`.
-- [ ] T013 [US2] Include `admin.py` router inside `src/main.py`.
-- [ ] T014 [US2] Write tests verifying admin token lifecycle operations in `tests/integration/test_admin.py`.
+- [x] T011 [P] [US2] Create write/delete queries (`create_token`, `revoke_token`) in `src/db/tokens.py`.
+- [x] T012 [P] [US2] Implement administrative token APIs conforming to `POST /admin/tokens` and `DELETE /admin/tokens/{id}` in `src/routers/admin.py`.
+- [x] T013 [US2] Include `admin.py` router inside `src/main.py`.
+- [x] T014 [US2] Write tests verifying admin token lifecycle operations in `tests/integration/test_admin.py`.
 
 **Checkpoint**: At this point, both internal proxying and external credential provisioning are operating safely.
 
@@ -68,9 +68,9 @@ description: "Task list for feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T015 [P] Implement `AccessLog` structured logging mechanism in `src/core/logging.py`.
-- [ ] T016 Setup in-memory rate limiting middleware applying to proxy attempts in `src/main.py`.
-- [ ] T017 Validate configuration against `quickstart.md` locally via a local run script.
+- [x] T015 [P] Implement `AccessLog` structured logging mechanism in `src/core/logging.py`.
+- [x] T016 Setup in-memory rate limiting middleware applying to proxy attempts in `src/main.py`.
+- [x] T017 Validate configuration against `quickstart.md` locally via a local run script.
 
 ---
 
