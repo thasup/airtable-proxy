@@ -140,49 +140,30 @@ pytest
 
 Since the proxy server is handling sensitive authentication tokens over the internet, **HTTPS is heavily recommended** for production environments to prevent man-in-the-middle token leakage.
 
-### Standard Production Setup
+### 🚀 Render Web Service (Free Tier)
 
-A typical production setup involves running the app using a process manager or a container, and placing it behind a reverse proxy (like Nginx, Caddy, or Traefik) that handles SSL/TLS termination.
+This repository comes pre-configured for a frictionless deployment to [Render's Free Tier](https://render.com/).
 
-**Running with Uvicorn in Production:**
-To fully utilize modern server architectures, run `uvicorn` with multiple workers:
-```bash
-uvicorn src.main:app --host 127.0.0.1 --port 8000 --workers 4
-```
-*(Note: Since SQLite is using a local file, ensure that multiple workers aren't causing write concurrency issues for your workload. Setting `check_same_thread=False` generally mitigates read limitations, and token creation is infrequent).*
+**Important Note for Free Tiers**: Render's free tier heavily relies on ephemeral storage. Any local files, including the SQLite database, will be **lost/wiped** whenever the service automatically spins down (due to inactivity) or restarts. Because of this, it is recommended to manage tokens externally or accept that you will need to re-issue them if using the free web tier.
 
-**Caddy Reverse Proxy Example (`Caddyfile`):**
-Caddy automatically handles Let's Encrypt HTTPS generation:
-```text
-proxy.yourdomain.com {
-    reverse_proxy 127.0.0.1:8000
-}
-```
+**Automated Deployment via `render.yaml`:**
+1. Connect your Github/GitLab account to Render.
+2. Under "Blueprints", click "New Blueprint Instance".
+3. Select this repository.
+4. Render will automatically parse the `render.yaml` file configuring the build and start commands dynamically. 
+5. In the Render Dashboard under your new Web Service, manually supply your secrets for `AIRTABLE_PAT` and `ADMIN_SECRET` directly in the environment variables tab. 
 
-### Docker Deployment
+**Manual Setup Instructions:**
+1. In the Render Dashboard, click "New" -> "Web Service".
+2. Select your repository.
+3. Configure the following specific fields:
+   * **Language**: `Python`
+   * **Build Command**: `pip install -r requirements.txt`
+   * **Start Command**: `uvicorn src.main:app --host 0.0.0.0 --port $PORT`
+4. Under "Environment Variables", manually enter:
+   * `AIRTABLE_PAT` = your production Airtable PAT
+   * `ADMIN_SECRET` = your proxy admin secret phrase
+   * `DB_PATH` = `/tmp/proxy.db` (Write permission target for Render)
+   * `PYTHON_VERSION` = `3.11.0`
 
-If you prefer containerized deployment, you can scaffold a container rapidly:
-
-**1. Create a `Dockerfile`:**
-```dockerfile
-FROM python:3.11-slim
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-**2. Build & Run (Mounting the DB to preserve secrets state):**
-```bash
-docker build -t airtable-proxy .
-
-docker run -d -p 8000:8000 \
-  -e AIRTABLE_PAT="patYourAirtableTokenSecret123" \
-  -e ADMIN_SECRET="your_super_secret_admin_phrase" \
-  -v $(pwd)/proxy.db:/app/proxy.db \
-  airtable-proxy
-```
+Once provisioned, your AI Agents can immediately start sending authenticated Bearer requests to `https://your-app-slug.onrender.com/*`.
