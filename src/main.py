@@ -35,11 +35,11 @@ async def rate_limit_middleware(request: Request, call_next):
     response = await call_next(request)
     return response
 
-app.include_router(admin.router)
-app.include_router(proxy.router)
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+app.include_router(admin.router)
+app.include_router(proxy.router)
 
 
