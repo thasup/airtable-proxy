@@ -1,50 +1,53 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!-- Sync Impact Report
+Version Change: 1.0.0 (initial specification)
+Modified Principles:
+  [PRINCIPLE_1_NAME] -> I. High Security & Privacy
+  [PRINCIPLE_2_NAME] -> II. AI Agent Exclusive Access
+  [PRINCIPLE_3_NAME] -> III. Public Accessibility & Discoverability
+  [PRINCIPLE_4_NAME] -> IV. Agent Authentication & Verification
+  [PRINCIPLE_5_NAME] -> (Removed)
+Added Sections: 
+  - (None, repurposing template sections)
+Removed Sections:
+  - (None)
+Templates requiring updates:
+  - .specify/templates/plan-template.md (✅ checked)
+  - .specify/templates/spec-template.md (✅ checked)
+  - .specify/templates/tasks-template.md (✅ checked)
+Follow-up TODOs:
+  - Add specific authentication mechanism details (e.g. agent API tokens, signed requests) to technical planning.
+-->
+
+# Airtable Proxy Server Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. High Security & Privacy
+The primary role of the proxy is to rigorously safeguard Airtable data and Personal Access Tokens (PATs). The server MUST retain all Airtable PATs server-side and never leak credentials to the public internet, mitigating the risk of unauthorized use or data exposure. Preserving the privacy of personal data is the top priority.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. AI Agent Exclusive Access
+The proxy MUST grant exclusive usage strictly to the owner's permitted AI agents. Broad public access or unauthorized automated bots MUST be actively blocked from reaching the underlying Airtable bases. 
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Public Accessibility & Discoverability
+Despite being secured, the server MUST be deployed on the public internet. This ensures that any user-owned AI agent with internet access and basic searching/crawling abilities can easily discover, connect to, and reliably retrieve Airtable information through the proxy endpoints without requiring complex VPN setups.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Agent Authentication & Verification
+To balance public reachability with exclusive access, the server MUST implement a robust authentication strategy for the incoming AI agents. There MUST be a specific technical mechanism (e.g., custom API keys, signed requests, or specific headers) that strongly and reliably proves the request actually originates from the user's permitted agents.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+## Security & Architecture Standards
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Techniques like custom agent API tokens, rate-limiting, and request signature validation SHOULD be employed so the proxy can confidently verify the agent's identity. All dependencies (e.g., Flask, requests, python-dotenv, gunicorn) MUST be kept minimal and closely audited to reduce the external attack surface. Any new endpoint MUST guarantee easy retriability for AI agent failures.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+## Development Workflow & Quality Gates
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
-
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+Code reviews MUST verify that new features do not compromise the authentication boundary. Any changes to the API structure MUST maintain compatibility with the AI agent's ability to easily reach and retry requests. Robust logging SHOULD be added to track agent authentication success and failures.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This Constitution supersedes all other documentation. 
+Amendments to these core principles or authentication strategies require formal documentation and an explicit migration plan for existing permitted AI agents. 
+All incoming pull requests and new features MUST be validated against these strict security and authentication principles. 
+If an authentication mechanism needs to be changed, it must be properly versioned to avoid breaking existing agents. 
+Version updates follow semantic versioning (MAJOR for breaking auth/governance changes, MINOR for new principles, PATCH for typos).
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-03-11 | **Last Amended**: 2026-03-11
